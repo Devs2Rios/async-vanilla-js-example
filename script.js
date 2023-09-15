@@ -25,9 +25,26 @@ const renderCountry = function (country, isNeighbor) {
   </article>
 `;
   countriesContainer.insertAdjacentHTML('beforeend', html);
-  countriesContainer.style.opacity = 1;
 };
 
+const renderError = function (msg) {
+  countriesContainer.insertAdjacentHTML(
+    'beforeend',
+    `<div style="text-align: center"><h3>😣 Something went wrong! 😣</h3><p>${msg}<p/></div>`
+  );
+};
+
+const getJSON = function (url, errorMsg = 'Something went wrong') {
+  return fetch(url).then(response => {
+    if (!response.ok) throw new Error(`${errorMsg} (${response.status})`);
+    return response.json();
+  });
+};
+
+const countryErrorMessage = c => `Country ${c} not found.`;
+
+/*
+// AJAX
 const getCountryRequest = function (url, callback = null) {
   const request = new XMLHttpRequest();
   request.open('GET', url);
@@ -53,5 +70,23 @@ const getCountryAndNeighborData = function (country) {
     );
   });
 };
+*/
 
-getCountryAndNeighborData('usa');
+// Fetch API
+const getCountryAndNeighborData = country => {
+  getJSON(`${endpoint}name/${country}`, countryErrorMessage(country))
+    .then(data => {
+      renderCountry(data[0]);
+      const neighbors = data[0].borders;
+      if (!neighbors) throw new Error('No neighbor found!');
+      return getJSON(
+        `${endpoint}alpha/${neighbors[0]}`,
+        countryErrorMessage(neighbors[0])
+      );
+    })
+    .then(data2 => renderCountry(data2[0], true))
+    .catch(err => (console.error(err), renderError(err.message)))
+    .finally(() => (countriesContainer.style.opacity = 1));
+};
+
+getCountryAndNeighborData('mexico');
