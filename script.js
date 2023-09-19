@@ -3,6 +3,18 @@
 const btn = document.querySelector('.btn-country');
 const countriesContainer = document.querySelector('.countries');
 const endpoint = 'https://restcountries.com/v3.1/';
+const title = str =>
+  str
+    .split(' ')
+    .map(w => w[0].toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+const geocodeEndpoint = (lat = 0, lng = 0) =>
+  `https://geocode.xyz/${lat},${lng}?geoit=json`;
+const getPosition = () => {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject);
+  });
+};
 
 ///////////////////////////////////////
 const renderCountry = function (country, isNeighbor) {
@@ -73,8 +85,14 @@ const getCountryAndNeighborData = function (country) {
 */
 
 // Fetch API
-const getCountryAndNeighborData = country => {
-  getJSON(`${endpoint}name/${country}`, countryErrorMessage(country))
+const getCountryAndNeighborData = () => {
+  getPosition()
+    .then(pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      return getJSON(geocodeEndpoint(lat, lng), 'Problem with geocoding');
+    })
+    .then(pos => pos.country)
+    .then(c => getJSON(`${endpoint}name/${c}`, countryErrorMessage(c)))
     .then(data => {
       renderCountry(data[0]);
       const neighbors = data[0].borders;
@@ -89,4 +107,8 @@ const getCountryAndNeighborData = country => {
     .finally(() => (countriesContainer.style.opacity = 1));
 };
 
-getCountryAndNeighborData('mexico');
+btn.addEventListener('click', function () {
+  countriesContainer.innerHTML = '';
+  countriesContainer.style.opacity = 0;
+  getCountryAndNeighborData();
+});
