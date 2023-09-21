@@ -3,20 +3,28 @@
 const btn = document.querySelector('.btn-country');
 const countriesContainer = document.querySelector('.countries');
 const endpoint = 'https://restcountries.com/v3.1/';
+
 const title = str =>
   str
     .split(' ')
     .map(w => w[0].toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
+
 const geocodeEndpoint = (lat = 0, lng = 0) =>
   `https://geocode.xyz/${lat},${lng}?geoit=json`;
+
 const getPosition = () => {
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject);
   });
 };
 
-///////////////////////////////////////
+const getJSON = async function (url, errorMsg = 'Something went wrong') {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${errorMsg} (${response.status})`);
+  return response.json();
+};
+
 const renderCountry = function (country, isNeighbor) {
   const html = `
   <article class="country${isNeighbor ? ' neighbour' : ''}">
@@ -44,13 +52,6 @@ const renderError = function (msg) {
     'beforeend',
     `<div style="text-align: center"><h3>😣 Something went wrong! 😣</h3><p>${msg}<p/></div>`
   );
-};
-
-const getJSON = function (url, errorMsg = 'Something went wrong') {
-  return fetch(url).then(response => {
-    if (!response.ok) throw new Error(`${errorMsg} (${response.status})`);
-    return response.json();
-  });
 };
 
 const countryErrorMessage = c => `Country ${c} not found.`;
@@ -83,7 +84,7 @@ const getCountryAndNeighborData = function (country) {
   });
 };
 */
-
+/*
 // Fetch API
 const getCountryAndNeighborData = () => {
   getPosition()
@@ -106,9 +107,41 @@ const getCountryAndNeighborData = () => {
     .catch(err => (console.error(err), renderError(err.message)))
     .finally(() => (countriesContainer.style.opacity = 1));
 };
+*/
+
+// async/await
+const getCountryAndNeighborData = async () => {
+  try {
+    const pos = await getPosition();
+    const { latitude: lat, longitude: lng } = pos.coords;
+    const { country } = await getJSON(
+      geocodeEndpoint(lat, lng),
+      'Problem with geocoding'
+    );
+    const data = await getJSON(
+      `${endpoint}name/${country}`,
+      countryErrorMessage(country)
+    );
+    renderCountry(data[0]);
+    const neighbors = data[0].borders;
+    if (!neighbors) throw new Error('No neighbor found!');
+    const [neighbor] = await getJSON(
+      `${endpoint}alpha/${neighbors[0]}`,
+      countryErrorMessage(neighbors[0])
+    );
+    renderCountry(neighbor, true);
+  } catch (err) {
+    console.error(err);
+    renderError(err.message);
+    return err;
+  }
+  countriesContainer.style.opacity = 1;
+};
 
 btn.addEventListener('click', function () {
   countriesContainer.innerHTML = '';
   countriesContainer.style.opacity = 0;
-  getCountryAndNeighborData();
+  (async function () {
+    await getCountryAndNeighborData();
+  })();
 });
